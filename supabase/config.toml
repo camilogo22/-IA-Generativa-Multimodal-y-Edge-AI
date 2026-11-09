@@ -1,0 +1,6 @@
+# Configuración mínima para la CLI de Supabase (npx supabase ...).
+project_id = "s10-tutor-ia"
+
+[functions.tutor]
+# La plataforma rechaza peticiones sin un JWT válido antes de ejecutar la función.
+verify_jwt = true
