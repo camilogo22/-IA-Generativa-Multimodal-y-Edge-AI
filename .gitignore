@@ -46,3 +46,7 @@ yarn-error.*
 # Supabase CLI local
 supabase/.temp/
 supabase/.branches/
+
+# Agent skills
+.agents/
+skills-lock.json
