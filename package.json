@@ -1,6 +1,7 @@
 {
   "name": "s10-tutor-ia",
-  "version": "1.0.0",
+  "version": "2.0.0",
+  "author": "Camilo Gomez (Codigo: 0182220083)",
   "main": "expo-router/entry",
   "dependencies": {
     "@ai-sdk/react": "^4.0.170",
