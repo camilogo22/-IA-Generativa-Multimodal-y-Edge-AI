@@ -1,6 +1,10 @@
 # 🤖 Tutor IA & GeoCam con IA — IA Generativa Multimodal y Edge AI
 
-Repositorio completo del proyecto **Asistente IA Multimodal y Edge AI** correspondiente a la **Semana 10 y 11** de **Programación Móvil Avanzada (Universidad de La Guajira)** para el **Taller Integrador 2** (entregado bajo el tag oficial `v2.0.0`).
+**Estudiante:** Camilo Gómez  
+**Código:** 0182220083  
+**Asignatura:** Programación Móvil Avanzada  
+**Institución:** Universidad de La Guajira  
+**Entrega:** Taller Integrador 2 (Semanas 10 y 11) — Tag oficial `v2.0.0`  
 
 Desarrollado con **React Native (Expo SDK 58 / Expo SDK 57)**, **Expo Router**, **Supabase PostgreSQL & Auth**, **Supabase Edge Functions en Deno**, **Vercel AI SDK v7** y **Google Gemini (Multimodal Vision & Streaming LLM)**.
 
@@ -177,7 +181,9 @@ Escanea el código QR desde **Expo Go** en tu dispositivo físico iOS o Android.
 
 ---
 
-## 🏷️ Versión y Licencia
+## 🏷️ Versión y Créditos
 
-* **Tag oficial:** `v2.0.0`
+* **Estudiante:** Camilo Gómez
+* **Código Estudiantil:** 0182220083
+* **Tag oficial de entrega:** `v2.0.0`
 * Desarrollado para fines académicos en la Universidad de La Guajira — 2026.

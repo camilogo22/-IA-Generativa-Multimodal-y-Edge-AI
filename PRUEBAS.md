@@ -1,5 +1,10 @@
 # 🧪 Matriz de Pruebas y Validación — Asistente IA (PRUEBAS.md)
 
+**Estudiante:** Camilo Gómez  
+**Código:** 0182220083  
+**Asignatura:** Programación Móvil Avanzada  
+**Institución:** Universidad de La Guajira  
+
 Este documento registra los escenarios de prueba ejecutados para validar la robustez, seguridad y manejo de errores del **Tutor IA** y los componentes de IA multimodal.
 
 ---

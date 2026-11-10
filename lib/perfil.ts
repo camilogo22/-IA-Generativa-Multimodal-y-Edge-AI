@@ -9,7 +9,7 @@ export interface PerfilEstudiante {
 const CLAVE_PERFIL = 'tutor_ia_perfil_v1';
 
 export const PERFIL_DEFAULT: PerfilEstudiante = {
-  nombre: '',
+  nombre: 'Camilo Gómez',
   tema: 'React Native y TypeScript',
   nivel: 'intermedio',
 };

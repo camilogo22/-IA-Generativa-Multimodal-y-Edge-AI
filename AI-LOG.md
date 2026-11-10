@@ -1,8 +1,10 @@
 # 🤖 Registro de Auditoría de IA (AI-LOG) — Semana 10
 
-**Estudiante:** Antonio J. Gómez  
+**Estudiante:** Camilo Gómez  
+**Código:** 0182220083  
 **Semana:** 10 / 11  
 **Proyecto:** Tutor IA & GeoCam con IA Multimodal (Taller Integrador 2, tag v2.0.0)  
+**Institución:** Universidad de La Guajira  
 
 ---
 
