@@ -1,93 +1,183 @@
-# 🤖 Tutor IA & GeoCam con IA — Semana 10 / 11
+# 🤖 Tutor IA & GeoCam con IA — IA Generativa Multimodal y Edge AI
 
-Proyecto completo de **Asistente IA Multimodal y Edge AI** para el Taller Integrador 2 (etiquetado con el tag `v2.0.0`). Desarrollado con **Expo SDK 57**, **Supabase Auth**, **Supabase Edge Functions**, **Vercel AI SDK v7** y **Google Gemini**.
+Repositorio completo del proyecto **Asistente IA Multimodal y Edge AI** correspondiente a la **Semana 10 y 11** de **Programación Móvil Avanzada (Universidad de La Guajira)** para el **Taller Integrador 2** (entregado bajo el tag oficial `v2.0.0`).
+
+Desarrollado con **React Native (Expo SDK 58 / Expo SDK 57)**, **Expo Router**, **Supabase PostgreSQL & Auth**, **Supabase Edge Functions en Deno**, **Vercel AI SDK v7** y **Google Gemini (Multimodal Vision & Streaming LLM)**.
 
 > [!IMPORTANT]
-> **Seguridad absoluta:** La API key de Gemini nunca viaja a la app ni está en el bundle. Se custodia exclusivamente como secreto de las Supabase Edge Functions con validación de sesión de usuario (`auth: 'user'`).
+> **Regla de Oro de Seguridad:** La API key de Google Gemini nunca viaja a la app ni se expone en variables `EXPO_PUBLIC_*` en el bundle de JavaScript. Se custodia de manera exclusiva en los secretos seguros de las Supabase Edge Functions con autenticación y cuotas controladas en backend.
 
 ---
 
 ## 🏛️ Arquitectura del Sistema
 
+```mermaid
+flowchart LR
+    subgraph Dispositivo Móvil [📱 Dispositivo Móvil / Expo Go]
+        UI[Pantalla Chat / GeoCam]
+        useChat[Vercel AI SDK useChat]
+        Transport[DefaultChatTransport + expo/fetch]
+        Compress[expo-image-manipulator 1024px ~150KB]
+        UI --> Compress --> useChat --> Transport
+    end
+
+    subgraph Backend [⚡ Supabase Cloud]
+        Kong[API Gateway / Kong]
+        DB[(PostgreSQL + RLS)]
+        TutorFn[Edge Function: tutor]
+        TarjetasFn[Edge Function: tarjetas]
+        VisionFn[Edge Function: describir-foto]
+        
+        Kong --> DB
+        Kong --> TutorFn
+        Kong --> TarjetasFn
+        Kong --> VisionFn
+    end
+
+    subgraph IA [🧠 Google AI Cloud]
+        Gemini[Google Gemini API 2.0 / 1.5 Flash]
+    end
+
+    Transport -- Token JWT + Mensajes / Foto --> Kong
+    TutorFn -- Valida RLS en uso_ia --> DB
+    TutorFn -- GEMINI_API_KEY en secrets --> Gemini
+    VisionFn -- Base64 JPEG --> Gemini
+    TarjetasFn -- Prompt + Schema Zod --> Gemini
+    Gemini -- SSE Chunks (Streaming) --> TutorFn -- Server-Sent Events --> Transport
 ```
-App Móvil (useChat + expo/fetch) ──Token de Sesión──► Edge Function "tutor" ──GEMINI_API_KEY──► Google Gemini
-                                 ◄──── Streaming ────                       ◄──── Streaming ────
+
+---
+
+## 🚀 Implementación de los Retos de la Guía (C1 a C6 y Taller)
+
+### 1. Streaming en Tiempo Real (Reto Principal)
+* Utiliza `expo/fetch` integrado en `DefaultChatTransport` para leer el flujo Server-Sent Events (SSE) token por token.
+* Respuestas generadas en menos de 1 segundo sin esperar a que el modelo complete todo el texto.
+* Polyfills síncronos de `structuredClone`, `TextEncoderStream` y `TextDecoderStream` en [`polyfills.ts`](./polyfills.ts) para compatibilidad total con el motor Hermes en iOS y Android.
+
+### 2. Reto C1 · Historial Persistente y Reinicio
+* La conversación se almacena localmente y se restaura automáticamente al iniciar la app.
+* Botón de reinicio rápido (🗑️) en el encabezado superior para vaciar la sesión y comenzar un nuevo tema pedagógico.
+
+### 3. Reto C2 · Instrucciones con Perfil del Estudiante
+* Modal interactivo accesible desde el botón superior izquierdo **`👤 Perfil`** ([`components/ModalPerfil.tsx`](./components/ModalPerfil.tsx)).
+* Permite definir **Nombre**, **Tema de Interés** (Hooks, SQLite, Navegación, etc.) y **Nivel** (*Principiante*, *Intermedio*, *Avanzado*).
+* El perfil viaja en el `body` de la petición y la Edge Function lo valida con **Zod**, adaptando el prompt de sistema (`instructions`) para personalizar el tono y profundidad de las respuestas.
+
+### 4. Reto C3 · Salida Estructurada (Tarjetas de Repaso / Flashcards)
+* Botón superior derecho **`🗂️ Tarjetas`** ([`components/ModalTarjetas.tsx`](./components/ModalTarjetas.tsx)).
+* La Edge Function `tarjetas` ([`supabase/functions/tarjetas/index.ts`](./supabase/functions/tarjetas/index.ts)) utiliza `generateText` con `Output.object({ schema: EsquemaZod })` para sintetizar de 3 a 5 tarjetas de evaluación con `{ pregunta, respuesta }`.
+* Interfaz interactiva de tarjetas giratorias: **toca la tarjeta para voltearla** y verificar tu respuesta.
+
+### 5. Reto C4 · Manejo de Errores y Modo Fuera de Red
+* Monitoreo activo de conectividad con `useNetworkState` de `expo-network`.
+* Despliegue de banner de advertencia ([`components/BannerSinRed.tsx`](./components/BannerSinRed.tsx)) cuando se corta la señal o se activa el Modo Avión.
+* Bloqueo inteligente de botones de envío y cámara sin red, y botón para detener la generación en curso (**■** Stop).
+
+### 6. Reto C5 · Límite de Uso Diario por Usuario
+* Tabla `public.uso_ia` con **Row Level Security (RLS)** en Supabase ([`supabase/migrations/20261109_init.sql`](./supabase/migrations/20261109_init.sql)).
+* La Edge Function consulta el cliente autenticado del usuario (`ctx.supabase`) para contar las peticiones de las últimas 24 horas.
+* Al alcanzar el límite configurable (`LIMITE_DIARIO`), responde con código HTTP `429` y un mensaje amigable: *"Has alcanzado el límite diario de consultas. Vuelve mañana."*.
+
+### 7. Taller GeoCam ve · Visión Multimodal (T1 a T6)
+* Optimización de imágenes en el cliente mediante `expo-image-manipulator`: comprime fotos tomadas con la cámara o galería a 1024 px de ancho y JPEG 0.7 (~150 KB en base64).
+* Edge Function `describir-foto` ([`supabase/functions/describir-foto/index.ts`](./supabase/functions/describir-foto/index.ts)) que devuelve un JSON `{ descripcion: "..." }`.
+* Migración SQL que agrega la columna `ai_description` a la tabla `photos`.
+
+### 8. Reto C6 · Bitácora de IA y Matriz de Pruebas
+* [`AI-LOG.md`](./AI-LOG.md): Registro detallado de prompts, código manual vs generado, corrección de modelos retirados y refactorización de Vercel AI SDK v4/v5 a v7.
+* [`PRUEBAS.md`](./PRUEBAS.md): Matriz de 10 escenarios de prueba (modo avión, límite 429, streaming, token vencido, inspección de bundle contra `AIza`) y las respuestas a las preguntas de sustentación.
+
+---
+
+## 📂 Estructura del Código
+
+```text
+├── app/
+│   ├── _layout.tsx              # Importa polyfills y define el stack de navegación
+│   ├── index.tsx                # Pantalla principal del Tutor IA (chat, chips, modales)
+│   └── login.tsx                # Autenticación con Supabase
+├── components/
+│   ├── BannerSinRed.tsx         # Aviso visual ante pérdida de internet (Reto C4)
+│   ├── Burbuja.tsx              # Renderizado de mensajes de texto y fotos con avatares
+│   ├── ModalPerfil.tsx          # Configuración del perfil de estudiante (Reto C2)
+│   └── ModalTarjetas.tsx        # Flashcards interactivas de repaso (Reto C3)
+├── lib/
+│   ├── chatTransport.ts         # Transporte nativo AI SDK v7 con streaming resiliente
+│   ├── foto.ts                  # Selector y compresor a 1024px con ImageManipulator
+│   ├── perfil.ts                # Persistencia del perfil con Expo SecureStore
+│   └── supabase.ts              # Cliente Supabase configurado con SecureStore
+├── services/
+│   └── vision.ts                # Invocación a la función de visión para GeoCam
+├── supabase/
+│   ├── functions/
+│   │   ├── tutor/index.ts       # Edge Function principal (Streaming + C2 + C5)
+│   │   ├── tarjetas/index.ts    # Edge Function de salida estructurada Zod (C3)
+│   │   └── describir-foto/index.ts # Edge Function de análisis visual GeoCam
+│   └── migrations/
+│       └── 20261109_init.sql    # Tabla uso_ia con RLS y columna ai_description
+├── AI-LOG.md                    # Bitácora de prompts y auditoría técnica
+├── PRUEBAS.md                   # Matriz de validación y preguntas de defensa
+└── package.json                 # Expo SDK 58, React 19 y Vercel AI SDK
 ```
 
 ---
 
-## 🚀 Funcionalidades Desarrolladas (Retos C1 a C6 y Taller)
+## 🛠️ Configuración y Puesta en Marcha
 
-* **Streaming en tiempo real:** Lectura chunk a chunk en Hermes usando `expo/fetch` y polyfills web.
-* **Multimodalidad (Cámara y Galería):** Reducción de imágenes a 1024 px JPEG 0.7 en base64 (~150 KB) con `expo-image-manipulator` para análisis visual sin saturar memoria ni payload.
-* **C1 · Historial Persistente:** Persistencia local de la conversación en `SecureStore` al finalizar cada respuesta (`onFinish`), restauración automática al reabrir la app y botón `✨ Nueva` para reiniciar el chat.
-* **C2 · Instrucciones con Perfil:** Modal interactivo de perfil (Nombre, Tema, Nivel) enviado en cada mensaje y validado con **Zod** en la Edge Function para adaptar el prompt del sistema.
-* **C3 · Salida Estructurada (Tarjetas de Repaso):** Edge Function `tarjetas` usando `generateText` con `Output.object` para extraer de 3 a 5 tarjetas de estudio interactivas (Flashcards) a partir del chat.
-* **C4 · Manejo de Errores y Modo Offline:** Detección de conectividad con `expo-network`, banner `⚠️ Sin conexión a internet`, bloqueo de envíos en modo avión y botón `Reintentar` (`regenerate()`).
-* **C5 · Control de Límite Diario:** Tabla `uso_ia` con políticas RLS en Supabase. Si el usuario supera el límite configurable (`LIMITE_DIARIO`), la función responde HTTP `429` con mensaje amigable.
-* **C6 · Bitácora y Pruebas:** Matriz de escenarios en `PRUEBAS.md` y registro de auditoría en `AI-LOG.md`.
-* **Taller GeoCam (`describir-foto`):** Función para descripción multimodal sin streaming y script de migración SQL para la columna `ai_description`.
-
----
-
-## 📂 Estructura del Proyecto
-
-| Archivo / Directorio | Descripción |
-| :--- | :--- |
-| `app/_layout.tsx` | Punto de entrada. Importa `polyfills.ts` como primera línea y protege rutas según la sesión. |
-| `app/index.tsx` | Pantalla principal de chat con streaming, controles multimedia, banner offline y modales C2/C3. |
-| `app/login.tsx` | Autenticación con Supabase (inicio de sesión y registro de usuarios). |
-| `components/Burbuja.tsx` | Renderizador de mensajes y partes (texto formateado e imágenes). |
-| `components/BannerSinRed.tsx` | Banner de advertencia de conectividad sin red (Reto C4). |
-| `components/ModalPerfil.tsx` | Modal para configurar el perfil del estudiante (Reto C2). |
-| `components/ModalTarjetas.tsx` | Modal interactivo para repasar con tarjetas flashcard generadas por IA (Reto C3). |
-| `lib/chatTransport.ts` | Transporte personalizado con `DefaultChatTransport`, `expo/fetch` y headers dinámicos. |
-| `lib/historial.ts` | Métodos de persistencia del historial de mensajes (Reto C1). |
-| `lib/perfil.ts` | Almacenamiento seguro de preferencias del estudiante (Reto C2). |
-| `lib/foto.ts` | Captura y optimización de fotos para useChat. |
-| `services/vision.ts` | Servicio de invocación a la función `describir-foto` para GeoCam. |
-| `supabase/functions/tutor/index.ts` | Edge Function del chat con streaming, límite diario C5 y perfil C2. |
-| `supabase/functions/describir-foto/index.ts` | Edge Function para describir fotos en 1-2 oraciones. |
-| `supabase/functions/tarjetas/index.ts` | Edge Function para generar flashcards estructuradas con Zod. |
-| `supabase/migrations/20261109_init.sql` | Scripts SQL de tabla `uso_ia` con RLS y columna `ai_description`. |
-| `AI-LOG.md` | Bitácora de prompts, cambios manuales y alucinaciones corregidas. |
-| `PRUEBAS.md` | Matriz de pruebas y respuestas a preguntas de sustentación. |
-
----
-
-## 🛠️ Puesta en Marcha
-
-### 1. Variables de entorno (`.env`)
-Copia `.env.example` a `.env` y coloca las credenciales de tu proyecto de Supabase:
+### 1. Variables de Entorno (`.env`)
+Crea tu archivo `.env` en la raíz (no se incluye en git):
 ```env
-EXPO_PUBLIC_SUPABASE_URL=https://xxxxxxxx.supabase.co
-EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxxxxxxx
+EXPO_PUBLIC_SUPABASE_URL=https://gavwbpnjuxzyuxwlybnf.supabase.co
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxxxxxxxxxxxxxxxxx
 ```
 
-### 2. Base de datos (Supabase)
-Ejecuta el script SQL ubicado en `supabase/migrations/20261109_init.sql` desde el **SQL Editor** del dashboard de Supabase para crear la tabla `uso_ia` con sus políticas de RLS.
+### 2. Base de Datos en Supabase
+Ejecuta el script [`supabase/migrations/20261109_init.sql`](./supabase/migrations/20261109_init.sql) desde el **SQL Editor** del dashboard de tu proyecto en Supabase para crear la tabla de control de uso y habilitar las políticas de seguridad RLS.
 
-### 3. Desplegar Edge Functions
+### 3. Despliegue de Edge Functions (Supabase CLI)
 ```bash
-# Iniciar sesión y vincular el proyecto
-npx supabase login
+# 1. Vincular tu proyecto
 npx supabase link --project-ref TU_PROJECT_REF
 
-# Configurar el secreto con la API Key de Google Gemini
+# 2. Configurar la clave secreta de Gemini en el backend seguro
 npx supabase secrets set GEMINI_API_KEY=AIzaSy...
 
-# (Opcional) Configurar límite diario para pruebas rápidas
+# 3. (Opcional) Configurar el límite de peticiones diarias
 npx supabase secrets set LIMITE_DIARIO=20
 
-# Desplegar las funciones
+# 4. Desplegar las funciones
 npx supabase functions deploy tutor
-npx supabase functions deploy describir-foto
 npx supabase functions deploy tarjetas
+npx supabase functions deploy describir-foto
 ```
 
-### 4. Ejecutar la App Móvil
+### 4. Iniciar la Aplicación Móvil
 ```bash
+# Instalar dependencias
 npm install
+
+# Iniciar Metro Bundler
 npx expo start -c
 ```
-Escanea el código QR con **Expo Go (SDK 57)** en Android o iOS.
+Escanea el código QR desde **Expo Go** en tu dispositivo físico iOS o Android.
+
+---
+
+## 🛡️ Preguntas de Sustentación (Defensa del Proyecto)
+
+1. **¿Dónde está tu API key de Gemini y cómo lo demuestras?**
+   * La clave reside única y exclusivamente en los secretos cifrados de Supabase (`supabase secrets`), nunca en el binario móvil ni en `.env`. Se demuestra inspeccionando el bundle compilado (`grep -rn "AIza" .`), donde no arroja ninguna coincidencia, y comprobando que una llamada HTTP sin token a la Edge Function responde de inmediato `401 Unauthorized`.
+2. **¿Qué ocurre si alguien envía un perfil manipulado o datos falsos por HTTP?**
+   * La Edge Function implementa un validador con **Zod** (`PerfilEsquema.parse(...)` con `.catch(...)`). Si se envían campos inválidos o inyecciones, Zod sanitiza la estructura y asigna los valores seguros por defecto.
+3. **¿Por qué el límite se cuenta con el cliente del usuario y no con la secret key?**
+   * Porque el cliente del usuario viaja con el token de sesión y respeta el **Row Level Security (RLS)** de la tabla `uso_ia`. Esto garantiza que cada usuario únicamente pueda contabilizar sus propias solicitudes sin poder inspeccionar ni alterar los registros de otros estudiantes.
+4. **¿Qué se almacena en el teléfono y qué se envía a Google?**
+   * En el teléfono se almacenan las preferencias locales en `SecureStore` y el historial reciente de chat. A Google únicamente se le transmiten los últimos 20 mensajes de texto y la fotografía reducida a 1024 px (~150 KB).
+
+---
+
+## 🏷️ Versión y Licencia
+
+* **Tag oficial:** `v2.0.0`
+* Desarrollado para fines académicos en la Universidad de La Guajira — 2026.
