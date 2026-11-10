@@ -43,11 +43,6 @@ export default function Chat() {
       <Stack.Screen
         options={{
           headerTitle: 'Tutor IA',
-          headerRight: () => (
-            <Pressable onPress={() => supabase.auth.signOut()}>
-              <Text style={s.salir}>Salir</Text>
-            </Pressable>
-          ),
         }}
       />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>

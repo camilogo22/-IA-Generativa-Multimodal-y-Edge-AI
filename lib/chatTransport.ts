@@ -5,7 +5,7 @@ import { supabase, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from './supabase';
 /**
  * Transporte de useChat hacia la Edge Function "tutor".
  * - api: URL pública de la función en Supabase.
- * - headers: se calculan EN CADA mensaje, así siempre va el token vigente.
+ * - headers: envía el token si existe o la publishable key si no hay login.
  * - fetch: el de Expo, que sí entrega la respuesta por partes (streaming).
  */
 export function crearTransporte(funcion = 'tutor') {
@@ -13,9 +13,8 @@ export function crearTransporte(funcion = 'tutor') {
     api: `${SUPABASE_URL}/functions/v1/${funcion}`,
     fetch: expoFetch as unknown as typeof globalThis.fetch,
     headers: async (): Promise<Record<string, string>> => {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (!token) throw new Error('No hay sesión: vuelve a iniciar sesión.');
+      const { data } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+      const token = data.session?.access_token || SUPABASE_PUBLISHABLE_KEY;
       return { Authorization: `Bearer ${token}`, apikey: SUPABASE_PUBLISHABLE_KEY };
     },
   });

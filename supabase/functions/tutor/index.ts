@@ -21,15 +21,15 @@ de la Universidad de La Guajira. Respondes en español, claro y breve (máximo 8
 Si te envían una foto, descríbela y relaciónala con la pregunta. Si no sabes algo, dilo; no inventes APIs.`;
 
 export default {
-  // auth: 'user' => sin un token de sesión válido responde 401 y nunca llega a Gemini.
-  fetch: withSupabase({ auth: 'user' }, async (req, ctx) => {
+  // auth: 'none' => permite entrar y chatear directamente sin requerir login obligatorio.
+  fetch: withSupabase({ auth: 'none' }, async (req, ctx) => {
     if (req.method !== 'POST') return new Response('Usa POST', { status: 405 });
 
     const { messages }: { messages: UIMessage[] } = await req.json();
 
     const result = streamText({
       model: google(MODELO),
-      instructions: `${INSTRUCCIONES}\nEl estudiante que pregunta es ${ctx.userClaims?.email ?? 'anónimo'}.`,
+      instructions: `${INSTRUCCIONES}\nEl estudiante que pregunta es ${ctx.userClaims?.email ?? 'estudiante'}.`,
       // La API no tiene memoria: se reenvía el historial. Solo los últimos 20 mensajes para cuidar tokens.
       messages: await convertToModelMessages(messages.slice(-20)),
       temperature: 0.4,
