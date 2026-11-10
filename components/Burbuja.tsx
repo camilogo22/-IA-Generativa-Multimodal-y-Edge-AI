@@ -6,7 +6,7 @@ export function Burbuja({ mensaje }: { mensaje: UIMessage }) {
   const esUsuario = mensaje.role === 'user';
   return (
     <View style={[s.burbuja, esUsuario ? s.usuario : s.ia]}>
-      {mensaje.parts.map((part, i) => {
+      {mensaje.parts?.map((part: any, i: number) => {
         switch (part.type) {
           case 'text':
             return <Text key={i} style={esUsuario ? s.textoUsuario : s.texto}>{part.text}</Text>;

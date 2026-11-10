@@ -1,6 +1,5 @@
 import { DefaultChatTransport } from 'ai';
 import { fetch as expoFetch } from 'expo/fetch';
-import { obtenerPerfil } from './perfil';
 import { supabase, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from './supabase';
 
 /**
@@ -8,7 +7,6 @@ import { supabase, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from './supabase';
  * - api: URL pública de la función en Supabase.
  * - headers: se calculan EN CADA mensaje, así siempre va el token vigente.
  * - fetch: el de Expo, que sí entrega la respuesta por partes (streaming).
- * - body: incluye los datos de perfil para personalizar las instrucciones (Reto C2).
  */
 export function crearTransporte(funcion = 'tutor') {
   return new DefaultChatTransport({
@@ -19,10 +17,6 @@ export function crearTransporte(funcion = 'tutor') {
       const token = data.session?.access_token;
       if (!token) throw new Error('No hay sesión: vuelve a iniciar sesión.');
       return { Authorization: `Bearer ${token}`, apikey: SUPABASE_PUBLISHABLE_KEY };
-    },
-    body: async () => {
-      const perfil = await obtenerPerfil();
-      return { perfil };
     },
   });
 }
