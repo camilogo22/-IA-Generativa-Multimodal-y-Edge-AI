@@ -1,7 +1,7 @@
 import { useChat } from '@ai-sdk/react';
 import type { FileUIPart } from 'ai';
 import { Stack } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,10 +16,13 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BannerSinRed } from '../components/BannerSinRed';
 import { Burbuja } from '../components/Burbuja';
+import { ModalPerfil } from '../components/ModalPerfil';
 import { ModalTarjetas } from '../components/ModalTarjetas';
 import { crearTransporte } from '../lib/chatTransport';
 import { elegirFoto } from '../lib/foto';
+import { obtenerPerfil, PerfilEstudiante } from '../lib/perfil';
 
 export default function Chat() {
   const transport = useMemo(() => crearTransporte('tutor'), []);
@@ -27,9 +30,15 @@ export default function Chat() {
   const [texto, setTexto] = useState('');
   const [foto, setFoto] = useState<FileUIPart | null>(null);
   const [modalTarjetasVisible, setModalTarjetasVisible] = useState(false);
+  const [modalPerfilVisible, setModalPerfilVisible] = useState(false);
+  const [perfil, setPerfil] = useState<PerfilEstudiante | null>(null);
   const lista = useRef<FlatList>(null);
 
   const ocupado = status === 'submitted' || status === 'streaming';
+
+  useEffect(() => {
+    obtenerPerfil().then(setPerfil);
+  }, []);
 
   function enviar(textoPersonalizado?: string) {
     const t = (textoPersonalizado ?? texto).trim();
@@ -71,6 +80,11 @@ export default function Chat() {
         options={{
           headerTitle: 'Tutor IA 🤖',
           headerTitleAlign: 'center',
+          headerLeft: () => (
+            <Pressable onPress={() => setModalPerfilVisible(true)} style={{ paddingHorizontal: 8 }}>
+              <Text style={s.botonHeader}>👤 Perfil</Text>
+            </Pressable>
+          ),
           headerRight: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               {messages.length > 0 && (
@@ -87,6 +101,8 @@ export default function Chat() {
           ),
         }}
       />
+
+      <BannerSinRed />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -105,9 +121,11 @@ export default function Chat() {
               <View style={s.iconoGrandeBox}>
                 <Text style={{ fontSize: 40 }}>🎓</Text>
               </View>
-              <Text style={s.vacioTitulo}>¡Hola! Soy tu Tutor IA</Text>
+              <Text style={s.vacioTitulo}>
+                ¡Hola{perfil?.nombre ? `, ${perfil.nombre}` : ''}! Soy tu Tutor IA
+              </Text>
               <Text style={s.vacioSub}>
-                Resuelvo tus dudas de programación móvil en React Native, Expo y TypeScript. También puedes enviarme una foto de tu código.
+                Resuelvo tus dudas de programación móvil en React Native, Expo y TypeScript. También puedes enviarme una foto de tu código o pantalla.
               </Text>
               <View style={s.sugerencias}>
                 <Text style={s.sugerenciasTitulo}>Sugerencias rápidas:</Text>
@@ -182,6 +200,12 @@ export default function Chat() {
           )}
         </View>
       </KeyboardAvoidingView>
+
+      <ModalPerfil
+        visible={modalPerfilVisible}
+        onCerrar={() => setModalPerfilVisible(false)}
+        onGuardado={(p) => setPerfil(p)}
+      />
 
       <ModalTarjetas
         visible={modalTarjetasVisible}

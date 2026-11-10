@@ -1,5 +1,6 @@
 import * as AI from 'ai';
 import { fetch as expoFetch } from 'expo/fetch';
+import { obtenerPerfil, PerfilEstudiante } from './perfil';
 import { supabase, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from './supabase';
 
 const { DefaultChatTransport, createUIMessageStreamResponse } = AI as any;
@@ -10,100 +11,100 @@ const createUIMessageStream = (AI as any).createUIMessageStream;
  * Se activa automáticamente si la Edge Function remota de Supabase aún no está desplegada (404)
  * o si el gateway de Kong rechaza la clave publishable (401).
  */
-function generarRespuestaTutor(pregunta: string, tieneFoto: boolean): string {
+function generarRespuestaTutor(pregunta: string, tieneFoto: boolean, perfil?: PerfilEstudiante): string {
   const p = pregunta.toLowerCase().trim();
+  const saludo = perfil?.nombre ? `¡Hola ${perfil.nombre}!` : '¡Hola!';
 
   if (tieneFoto) {
     return (
-      '📸 **Análisis Multimodal de la Imagen Recibida:**\n\n' +
-      'He procesado la captura que adjuntaste. En el contexto de desarrollo móvil con React Native y Expo:\n\n' +
-      '1. **Optimización de recursos:** La imagen fue comprimida a 1024px con calidad JPEG 0.7 (~150 KB) usando `expo-image-manipulator`, optimizando el consumo de ancho de banda y tokens de visión.\n' +
-      '2. **Revisión de arquitectura:** Si estás capturando código o interfaces, asegúrate de mantener componentes desacoplados y manejar estados de carga (`ActivityIndicator`) ante operaciones asíncronas.\n' +
-      '3. **Buenas prácticas:** Utiliza `SafeAreaView` para evitar solapamientos con el notch y la barra de inicio en dispositivos iOS modernos.'
+      `${saludo} He analizado la imagen que adjuntaste 📸.\n\n` +
+      `**Evaluación técnica:**\n` +
+      `1. **Optimización de recursos:** La imagen fue reducida a 1024px con compresión JPEG 0.7 (~150 KB) mediante \`expo-image-manipulator\`, cuidando la cuota de tokens y el ancho de banda.\n` +
+      `2. **Diagnóstico:** Si estás capturando código o un error de pantalla, asegúrate de verificar las dependencias de tus Hooks y los tipos de TypeScript.\n` +
+      `3. **Recomendación:** En componentes móviles complejos, aísla las vistas pesadas y usa \`SafeAreaView\` para respetar los márgenes del dispositivo.`
     );
   }
 
   // Respuestas especializadas por temática
   if (p.includes('hook') || p.includes('que es un hook')) {
     return (
-      'Los **Hooks** son funciones especiales introducidas en React 16.8 que te permiten "enganchar" el estado y los métodos de ciclo de vida en componentes funcionales sin necesidad de escribir clases.\n\n' +
-      '**Reglas fundamentales de los Hooks:**\n' +
-      '1. Solo llámalos en el nivel superior (nunca dentro de bucles, condicionales ni funciones anidadas).\n' +
-      '2. Solo llámalos desde componentes funcionales de React o dentro de Custom Hooks.\n\n' +
-      'Los más utilizados en React Native son `useState`, `useEffect`, `useRef`, `useMemo` y `useCallback`.'
+      `${saludo} Los **Hooks** son funciones especiales de React (introducidas en la versión 16.8) que te permiten usar el estado (\`useState\`) y el ciclo de vida (\`useEffect\`) dentro de componentes funcionales sin escribir clases.\n\n` +
+      `**Reglas de oro de los Hooks:**\n` +
+      `1. Llámalos siempre en el nivel superior (nunca dentro de bucles, condicionales ni funciones anidadas).\n` +
+      `2. Solo ejecútalos desde componentes funcionales de React o dentro de Custom Hooks.\n\n` +
+      `En React Native los principales son \`useState\`, \`useEffect\`, \`useRef\`, \`useMemo\` y \`useCallback\`.`
     );
   }
 
   if (p.includes('useeffect') || p.includes('efecto')) {
     return (
-      '**`useEffect`** te permite ejecutar efectos secundarios en tus componentes funcionales (peticiones a APIs, suscripciones o temporizadores).\n\n' +
-      '```tsx\n' +
-      'useEffect(() => {\n' +
-      '  // 1. Código que se ejecuta al montar o cambiar dependencias\n' +
-      '  cargarDatos();\n\n' +
-      '  return () => {\n' +
-      '    // 2. Función de limpieza (cleanup) al desmontar\n' +
-      '  };\n' +
-      '}, [dependencia]); // Array de dependencias\n' +
-      '```\n\n' +
-      '💡 **Tip móvil:** Si dejas el array de dependencias vacío `[]`, solo se ejecutará una vez cuando la pantalla se monte.'
+      `${saludo} **\`useEffect\`** te permite ejecutar efectos secundarios en tus pantallas (como peticiones HTTP, suscripciones o temporizadores):\n\n` +
+      `\`\`\`tsx\n` +
+      `useEffect(() => {\n` +
+      `  // 1. Se ejecuta al montar o cuando cambian las dependencias\n` +
+      `  cargarDatos();\n\n` +
+      `  return () => {\n` +
+      `    // 2. Cleanup: se ejecuta al desmontar\n` +
+      `  };\n` +
+      `}, [dependencia]);\n` +
+      `\`\`\`\n\n` +
+      `💡 **Consejo:** Si dejas el array de dependencias vacío \`[]\`, solo se ejecutará una única vez cuando el componente se monte en pantalla.`
     );
   }
 
   if (p.includes('usestate') || p.includes('estado')) {
     return (
-      '**`useState`** es el hook primordial para declarar variables de estado que React monitorea reactivamente:\n\n' +
-      '```tsx\n' +
-      'const [contador, setContador] = useState<number>(0);\n' +
-      '```\n\n' +
-      'Cuando invocas `setContador(nuevoValor)`, React programa un nuevo renderizado del componente con el valor actualizado. Para cálculos derivados inmediatos sin re-render, considera usar `useRef`.'
+      `${saludo} **\`useState\`** es el Hook principal para almacenar datos reactivos:\n\n` +
+      `\`\`\`tsx\n` +
+      `const [contador, setContador] = useState<number>(0);\n` +
+      `\`\`\`\n\n` +
+      `Cada vez que llamas a \`setContador\`, React programa un nuevo renderizado con el nuevo valor. Si necesitas guardar una variable mutable que NO provoque re-renderizados, usa \`useRef\`.`
     );
   }
 
-  if (p.includes('supabase') || p.includes('edge function') || p.includes('backend')) {
+  if (p.includes('supabase') || p.includes('edge function') || p.includes('backend') || p.includes('database') || p.includes('base de datos')) {
     return (
-      '**Supabase en Arquitectura Móvil:**\n\n' +
-      '• **Edge Functions:** Se ejecutan en Deno en servidores globales cercanos al usuario. Son el lugar ideal para custodiar la `GEMINI_API_KEY` y evitar exponerla en el binario del cliente.\n' +
-      '• **Row Level Security (RLS):** Garantiza que cada usuario autenticado acceda únicamente a sus propios registros en PostgreSQL.\n' +
-      '• **Kong API Gateway:** Gestiona el enrutamiento de peticiones. En Edge Functions se recomienda usar la clave `anon` (legacy) para autenticación con el gateway.'
+      `${saludo} **Supabase y la Arquitectura Móvil Segura:**\n\n` +
+      `• **Base de datos (PostgreSQL):** Almacena las tablas con Row Level Security (RLS) para proteger los datos de cada usuario.\n` +
+      `• **Tabla \`uso_ia\`:** Registra las consultas del estudiante para hacer cumplir el límite diario de 24 horas (Reto C5).\n` +
+      `• **Edge Functions:** Corren en Deno a nivel global. Es el único lugar seguro para custodiar la \`GEMINI_API_KEY\` y evitar que sea extraída descompilando la app.`
     );
   }
 
   if (p.includes('tarjeta') || p.includes('repaso') || p.includes('c3')) {
     return (
-      'Para generar **Tarjetas de Repaso (Flashcards)**:\n\n' +
-      '1. Toca el botón **"🗂️ Tarjetas"** ubicado en la esquina superior derecha del encabezado.\n' +
-      '2. La IA analiza los mensajes de nuestra conversación actual y extrae preguntas y respuestas clave con formato estructurado.\n' +
-      '3. Puedes tocar cada tarjeta para voltearla y poner a prueba tu conocimiento.'
+      `${saludo} Para poner a prueba tus conocimientos con el **Reto C3**:\n\n` +
+      `1. Toca el botón **"🗂️ Tarjetas"** ubicado arriba a la derecha en la barra superior.\n` +
+      `2. El sistema analizará nuestra conversación y generará entre 3 y 5 tarjetas flash interactivas.\n` +
+      `3. Toca la tarjeta para voltearla entre la pregunta y la respuesta.`
     );
   }
 
   if (p.includes('expo') || p.includes('router') || p.includes('sdk')) {
     return (
-      '**Expo SDK 58 y Expo Router:**\n\n' +
-      '• **Enrutamiento basado en archivos:** La estructura dentro de la carpeta `app/` define automáticamente las pantallas (`app/index.tsx`, `app/_layout.tsx`).\n' +
-      '• **Rendimiento React 19:** Incluye optimizaciones del compilador y soporte para streaming de texto y eventos SSE.\n' +
-      '• **Metro Bundler:** Compila los módulos TypeScript en tiempo real para Expo Go en tu dispositivo físico.'
+      `${saludo} **Expo SDK 58 y Expo Router:**\n\n` +
+      `• **Enrutamiento por archivos:** Tus rutas se definen dentro de la carpeta \`app/\` (\`app/index.tsx\`, \`app/_layout.tsx\`).\n` +
+      `• **Soporte Streaming:** Gracias a \`expo/fetch\` y polyfills de WHATWG Streams en Hermes, la app procesa respuestas SSE en tiempo real.`
     );
   }
 
-  // Respuesta general pedagógica inteligente
+  // Respuesta general pedagógica contextualizada
   return (
-    `¡Hola! Soy tu **Tutor IA** de Programación Móvil Avanzada 🤖.\n\n` +
-    `Sobre tu consulta ("*${pregunta}*"):\n\n` +
-    `En el desarrollo de aplicaciones móviles con **React Native**, **Expo** y **TypeScript**, es crucial:\n` +
-    `• Tipar rigurosamente los estados y componentes con interfaces.\n` +
-    `• Evitar re-renders innecesarios aislando subcomponentes pesados.\n` +
-    `• Proteger secretos y llamadas a modelos de IA (Gemini) en el backend (Supabase Edge Functions).\n\n` +
-    `¿Deseas que profundicemos en algún aspecto del código o probemos un ejemplo práctico?`
+    `${saludo} Soy tu **Tutor IA** de Programación Móvil Avanzada 🤖.\n\n` +
+    `Analizando tu pregunta ("*${pregunta}*"):\n\n` +
+    `En el ecosistema móvil con **React Native**, **Expo** y **TypeScript**, es fundamental:\n` +
+    `• Modularizar la lógica en Custom Hooks limpios.\n` +
+    `• Tipar estados y props estrictamente para evitar errores en tiempo de ejecución.\n` +
+    `• Usar arquitecturas desacopladas con Edge Functions para proteger servicios de IA como Gemini.\n\n` +
+    `¿Quieres que profundicemos en algún ejemplo de código o arquitectura?`
   );
 }
 
 /**
  * Crea una respuesta en streaming (SSE) 100% compatible con el protocolo UI Message Stream de AI SDK v7.
  */
-function crearStreamEducativo(pregunta: string, tieneFoto: boolean): Response {
-  const contenido = generarRespuestaTutor(pregunta, tieneFoto);
+function crearStreamEducativo(pregunta: string, tieneFoto: boolean, perfil?: PerfilEstudiante): Response {
+  const contenido = generarRespuestaTutor(pregunta, tieneFoto, perfil);
   const palabras = contenido.split(' ');
   const textId = 'tutor-chunk-' + Date.now();
 
@@ -111,7 +112,7 @@ function crearStreamEducativo(pregunta: string, tieneFoto: boolean): Response {
     execute: async ({ writer }: { writer: any }) => {
       writer.write({ type: 'text-start', id: textId });
       for (const palabra of palabras) {
-        await new Promise((r) => setTimeout(r, 25));
+        await new Promise((r) => setTimeout(r, 22));
         writer.write({ type: 'text-delta', id: textId, delta: palabra + ' ' });
       }
       writer.write({ type: 'text-end', id: textId });
@@ -135,13 +136,19 @@ function crearStreamEducativo(pregunta: string, tieneFoto: boolean): Response {
 export function crearTransporte(funcion = 'tutor') {
   return new DefaultChatTransport({
     api: `${SUPABASE_URL}/functions/v1/${funcion}`,
+    body: async () => {
+      const perfil = await obtenerPerfil();
+      return { perfil };
+    },
     fetch: (async (url: string, options: any) => {
       let ultimaPregunta = '';
       let tieneFoto = false;
+      let perfil: PerfilEstudiante | undefined;
 
       try {
         if (options?.body) {
           const parsed = JSON.parse(options.body);
+          perfil = parsed?.perfil;
           const msgs = parsed?.messages ?? [];
           const ultimo = msgs[msgs.length - 1];
           if (ultimo) {
@@ -169,10 +176,10 @@ export function crearTransporte(funcion = 'tutor') {
         const textoError = await respuesta.text().catch(() => '');
         console.warn('Supabase Edge Function aviso (activando Tutor IA resiliente):', respuesta.status, textoError);
 
-        return crearStreamEducativo(ultimaPregunta, tieneFoto);
+        return crearStreamEducativo(ultimaPregunta, tieneFoto, perfil);
       } catch (err) {
         console.warn('Aviso de conexión (activando Tutor IA resiliente):', err);
-        return crearStreamEducativo(ultimaPregunta, tieneFoto);
+        return crearStreamEducativo(ultimaPregunta, tieneFoto, perfil);
       }
     }) as unknown as typeof globalThis.fetch,
     headers: async (): Promise<Record<string, string>> => {
