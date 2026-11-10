@@ -30,7 +30,8 @@
           "photosPermission": "Tutor IA usa tus fotos solo cuando eliges una para preguntarle a la IA.",
           "cameraPermission": "Tutor IA usa la cámara para tomar una foto y preguntarle a la IA."
         }
-      ]
+      ],
+      "expo-status-bar"
     ],
     "scheme": "tutoria"
   }
